@@ -11,4 +11,10 @@ router.get("/:id", articlesController.show);
 // store
 router.put("/", articlesController.store);
 
+// update
+router.put("/:id", articlesController.update);
+
+//ceckout
+router.post("/checkout", articlesController.checkout);
+
 module.exports = router;

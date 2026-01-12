@@ -125,6 +125,130 @@ WHERE a.id = ${id}`;
       });
     });
   },
+
+  update: (req, res) => {
+    const id = Number(req.params.id);
+    const data = req.body;
+
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "ID non valido" });
+    }
+
+    const allowedFields = [
+      "name",
+      "slug",
+      "price",
+      "image",
+      "quantity",
+      "genres",
+      "pvp_pve",
+      "pegi",
+      "dimensions",
+      "production_year",
+      "production_house",
+      "categorie_id",
+    ];
+
+    const fields = [];
+    const values = [];
+
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) {
+        fields.push(`${field} = ?`);
+        values.push(data[field]);
+      }
+    }
+
+    if (fields.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Nessun campo valido da aggiornare" });
+    }
+
+    const sql = `
+    UPDATE articles
+    SET ${fields.join(", ")}
+    WHERE id = ?
+  `;
+
+    values.push(id);
+
+    db.query(sql, values, (err, result) => {
+      if (err) {
+        return res.status(500).json(err);
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Articolo non trovato" });
+      }
+
+      res.json({
+        message: "Articolo aggiornato correttamente",
+      });
+    });
+  },
+
+  ////////
+
+  checkout: (req, res) => {
+    const items = req.body.items;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Carrello vuoto o non valido" });
+    }
+
+    db.beginTransaction((err) => {
+      if (err) return res.status(500).json(err);
+
+      let completed = 0;
+
+      for (const item of items) {
+        const articleId = Number(item.article_id);
+        const qty = Number(item.quantity);
+
+        if (isNaN(articleId) || isNaN(qty) || qty <= 0) {
+          return db.rollback(() =>
+            res.status(400).json({ error: "Dati carrello non validi" })
+          );
+        }
+
+        const sql = `
+        UPDATE articles
+        SET quantity = quantity - ?
+        WHERE id = ?
+          AND quantity >= ?
+      `;
+
+        db.query(sql, [qty, articleId, qty], (err, result) => {
+          if (err) {
+            return db.rollback(() => res.status(500).json(err));
+          }
+
+          if (result.affectedRows === 0) {
+            return db.rollback(() =>
+              res.status(409).json({
+                error: "Stock insufficiente per uno o più articoli",
+              })
+            );
+          }
+
+          completed++;
+
+          if (completed === items.length) {
+            db.commit((err) => {
+              if (err) {
+                return db.rollback(() => res.status(500).json(err));
+              }
+
+              res.json({
+                message: "Checkout completato con successo",
+              });
+            });
+          }
+        });
+      }
+    });
+  },
 };
 
 module.exports = articlesController;
