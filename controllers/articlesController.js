@@ -74,6 +74,57 @@ WHERE a.id = ${id}`;
       res.json(results);
     });
   },
+
+  store: (req, res) => {
+    const data = req.body;
+
+    const allowedFields = [
+      "name",
+      "slug",
+      "price",
+      "image",
+      "quantity",
+      "pvp_pve",
+      "dimensions",
+      "genres",
+      "pegi",
+      "production_year",
+      "production_house",
+      "categorie_id",
+    ];
+
+    const columns = [];
+    const placeholders = [];
+    const values = [];
+
+    for (const field of allowedFields) {
+      if (field in data) {
+        columns.push(field);
+        placeholders.push("?");
+        values.push(data[field]);
+      }
+    }
+
+    const sql = `
+    INSERT INTO articles (${columns.join(", ")})
+    VALUES (${placeholders.join(", ")})
+  `;
+
+    db.query(sql, values, (err, result) => {
+      if (err) {
+        console.error("Errore nella query di inserimento:", err);
+        return res.status(500).json({
+          error: true,
+          message: "Errore interno del server",
+        });
+      }
+
+      res.status(201).json({
+        message: "Articolo creato con successo",
+        id: result.insertId,
+      });
+    });
+  },
 };
 
 module.exports = articlesController;
