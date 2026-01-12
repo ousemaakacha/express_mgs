@@ -1,29 +1,30 @@
 {
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^5.2.1",
-    "mysql2": "^3.16.0"
-  },
   "name": "express_mgs",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js",
-    "dev": "node --watch --env-file=.env server.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ousemaakacha/express_mgs.git"
+    "start": "node --env-file=.env server.js",
+    "dev": "node --env-file=.env --watch server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/ousemaakacha/express_mgs/issues"
+  "dependencies": {
+    "cor": "^0.0.0",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "mysql2": "^3.16.0",
+    "postman": "^0.2.0"
   },
-  "homepage": "https://github.com/ousemaakacha/express_mgs#readme"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/francesco-troise/express_mgs-main.git"
+  },
+  "bugs": {
+    "url": "https://github.com/francesco-troise/express_mgs-main/issues"
+  },
+  "homepage": "https://github.com/francesco-troise/express_mgs-main#readme"
 }
