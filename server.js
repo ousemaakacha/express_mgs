@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const CORS = require("cors");
+const cors = require("cors");
 const PORT = 3000;
 const db = require("./data/db");
 const notFound = require("./middleware/notFound");
@@ -9,6 +9,7 @@ const serverError = require("./middleware/serverError");
 const articlesRouter = require("./routes/articlesRouter");
 
 app.use(express.static("public"));
+app.use(cors())
 
 app.use(express.json());
 
