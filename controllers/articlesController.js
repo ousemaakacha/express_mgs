@@ -46,7 +46,7 @@ WHERE 1=1
 
   //Mostra un SINGOLO articolo
   show: (req, res) => {
-    //Recupero id passato da frontend
+    //Recupero slug passato da frontend
     const { id } = req.params;
 
     //Sql con parametro dinamico
@@ -65,9 +65,9 @@ WHERE 1=1
     a.production_house,
     c.categorie
 FROM articles AS a
-LEFT JOIN categories AS c 
+LEFT JOIN categories AS c
     ON a.categorie_id = c.id
-WHERE a.id = ${id}`;
+WHERE a.slug = '${id}'`;
 
     db.query(sql, (err, results) => {
       //in caso di errore:
