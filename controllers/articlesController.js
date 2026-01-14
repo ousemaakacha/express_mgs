@@ -228,9 +228,9 @@ WHERE a.slug = '${id}'`;
         //Sql del singolo articolo, che cambio di giro in giro
         const sql = `
         UPDATE articles
-        SET quantity = quantity - ? qtt
-        WHERE id = ? article id
-          AND quantity >= ? qty
+        SET quantity = quantity - ? 
+        WHERE id = ? 
+          AND quantity >= ? 
       `;
 
         //Interrogazione del database
