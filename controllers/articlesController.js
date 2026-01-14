@@ -1,6 +1,7 @@
 const db = require("../data/db");
 
 const articlesController = {
+  //Risponde con TUTTI gli articoli
   index: (req, res) => {
     let sql = `SELECT
     a.id,
@@ -26,7 +27,9 @@ WHERE 1=1
       sql += ` AND name = '${req.query.name}'`;
     }
 
+    //Interrogazione del database
     db.query(sql, (err, results) => {
+      //In caso di errore:
       if (err) {
         console.error("Errore nella query dei prodotti:", err);
         return res.status(500).json({
@@ -34,16 +37,19 @@ WHERE 1=1
           message: "Errore interno del server",
         });
       }
-
+      //altrimenti:
       res.json(results);
     });
   },
 
   /////////
 
+  //Mostra un SINGOLO articolo
   show: (req, res) => {
+    //Recupero id passato da frontend
     const { id } = req.params;
 
+    //Sql con parametro dinamico
     let sql = `SELECT
     a.id,
     a.name,
@@ -64,6 +70,7 @@ LEFT JOIN categories AS c
 WHERE a.id = ${id}`;
 
     db.query(sql, (err, results) => {
+      //in caso di errore:
       if (err) {
         console.error("Errore nella ricerca singolo prodotto:", err);
         return res.status(404).json({
@@ -71,10 +78,12 @@ WHERE a.id = ${id}`;
           message: "404 risorsa non trovata",
         });
       }
+      //altrimenti
       res.json(results);
     });
   },
 
+  //Inserimento nuovo articolo
   store: (req, res) => {
     const data = req.body;
 
@@ -126,6 +135,7 @@ WHERE a.id = ${id}`;
     });
   },
 
+  //Update nuovo articolo lato Admin
   update: (req, res) => {
     const id = Number(req.params.id);
     const data = req.body;
@@ -192,7 +202,7 @@ WHERE a.id = ${id}`;
 
   checkout: (req, res) => {
     const items = req.body.items;
-
+    //SE items non è array oppure è un array di lunghezza zero
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "Carrello vuoto o non valido" });
     }
@@ -202,28 +212,35 @@ WHERE a.id = ${id}`;
 
       let completed = 0;
 
+      //Ciclo che scorre items, ovvero il carrello
       for (const item of items) {
+        //recupero del singolo articolo , id e quantità
         const articleId = Number(item.article_id);
         const qty = Number(item.quantity);
 
+        //controllo che id e quantità siano numeriche(perchè numeriche nel database)
         if (isNaN(articleId) || isNaN(qty) || qty <= 0) {
           return db.rollback(() =>
             res.status(400).json({ error: "Dati carrello non validi" })
           );
         }
 
+        //Sql del singolo articolo, che cambio di giro in giro
         const sql = `
         UPDATE articles
-        SET quantity = quantity - ?
-        WHERE id = ?
-          AND quantity >= ?
+        SET quantity = quantity - ? qtt
+        WHERE id = ? article id
+          AND quantity >= ? qty
       `;
 
+        //Interrogazione del database
         db.query(sql, [qty, articleId, qty], (err, result) => {
           if (err) {
+            //rollback fa in modo che operazini precedenti non abbiano effetto nel DB
             return db.rollback(() => res.status(500).json(err));
           }
 
+          //Se non hai avuto effetto nel DB
           if (result.affectedRows === 0) {
             return db.rollback(() =>
               res.status(409).json({
@@ -234,8 +251,11 @@ WHERE a.id = ${id}`;
 
           completed++;
 
+          //Controllo che il ciclo for abbia girato per tutti il carrello
           if (completed === items.length) {
+            //Permette l'interrogazione atomico del database
             db.commit((err) => {
+              //ogni interrogazinoe atomica ne controlla eventuali errori
               if (err) {
                 return db.rollback(() => res.status(500).json(err));
               }
