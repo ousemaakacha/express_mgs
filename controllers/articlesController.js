@@ -231,110 +231,131 @@ WHERE a.slug = ?`;
       return res.status(400).json({ error: "Carrello vuoto o non valido" });
     }
 
-    db.beginTransaction((err) => {
-      if (err) return res.status(500).json(err);
+    //Ottieni una connessione dal pool per usare le transazioni
+    db.getConnection((err, connection) => {
+      if (err) return res.status(500).json({ error: true, message: err.message });
 
-      let orderTotal = 0;
-      let completed = 0;
-
-      //Recupero prezzi e controllo stock
-      for (const item of items) {
-        const articleId = Number(item.article_id);
-        const qty = Number(item.quantity);
-
-        if (isNaN(articleId) || isNaN(qty) || qty <= 0) {
-          return db.rollback(() =>
-            res.status(400).json({ error: "Dati carrello non validi" })
-          );
+      connection.beginTransaction((err) => {
+        if (err) {
+          connection.release();
+          return res.status(500).json(err);
         }
 
-        const priceSql = `
-        SELECT price, quantity
-        FROM articles
-        WHERE id = ?
-      `;
+        let orderTotal = 0;
+        let completed = 0;
 
-        db.query(priceSql, [articleId], (err, rows) => {
-          if (err || rows.length === 0) {
-            return db.rollback(() =>
-              res.status(404).json({ error: "Articolo non trovato" })
-            );
+        //Recupero prezzi e controllo stock
+        for (const item of items) {
+          const articleId = Number(item.article_id);
+          const qty = Number(item.quantity);
+
+          if (isNaN(articleId) || isNaN(qty) || qty <= 0) {
+            return connection.rollback(() => {
+              connection.release();
+              res.status(400).json({ error: "Dati carrello non validi" });
+            });
           }
 
-          const article = rows[0];
+          const priceSql = `
+          SELECT price, quantity
+          FROM articles
+          WHERE id = ?
+        `;
 
-          if (article.quantity < qty) {
-            return db.rollback(() =>
-              res.status(409).json({
-                error: "Stock insufficiente per uno o più articoli",
-              })
-            );
-          }
+          connection.query(priceSql, [articleId], (err, rows) => {
+            if (err || rows.length === 0) {
+              return connection.rollback(() => {
+                connection.release();
+                res.status(404).json({ error: "Articolo non trovato" });
+              });
+            }
 
-          //Calcolo totale
-          orderTotal += article.price * qty;
+            const article = rows[0];
 
-          completed++;
+            if (article.quantity < qty) {
+              return connection.rollback(() => {
+                connection.release();
+                res.status(409).json({
+                  error: "Stock insufficiente per uno o più articoli",
+                });
+              });
+            }
 
-          //Quando abbiamo calcolato tutto il totale
-          if (completed === items.length) {
-            //Inserimento ordine
-            const orderSql = `
-            INSERT INTO orders (name, surname, email, address, total)
-            VALUES (?, ?, ?, ?, ?)
-          `;
+            //Calcolo totale
+            orderTotal += article.price * qty;
 
-            db.query(
-              orderSql,
-              [name, surname, email, address, orderTotal],
-              (err, orderResult) => {
-                if (err) {
-                  return db.rollback(() => res.status(500).json(err));
-                }
+            completed++;
 
-                const orderId = orderResult.insertId;
-                let stockUpdated = 0;
+            //Quando abbiamo calcolato tutto il totale
+            if (completed === items.length) {
+              //Inserimento ordine
+              const orderSql = `
+              INSERT INTO orders (name, surname, email, address, total)
+              VALUES (?, ?, ?, ?, ?)
+            `;
 
-                //Aggiornamento stock
-                for (const item of items) {
-                  const updateSql = `
-                  UPDATE articles
-                  SET quantity = quantity - ?
-                  WHERE id = ?
-                `;
+              connection.query(
+                orderSql,
+                [name, surname, email, address, orderTotal],
+                (err, orderResult) => {
+                  if (err) {
+                    return connection.rollback(() => {
+                      connection.release();
+                      res.status(500).json(err);
+                    });
+                  }
 
-                  db.query(
-                    updateSql,
-                    [item.quantity, item.article_id],
-                    (err) => {
-                      if (err) {
-                        return db.rollback(() => res.status(500).json(err));
-                      }
+                  const orderId = orderResult.insertId;
+                  let stockUpdated = 0;
 
-                      stockUpdated++;
+                  //Aggiornamento stock
+                  for (const item of items) {
+                    const updateSql = `
+                    UPDATE articles
+                    SET quantity = quantity - ?
+                    WHERE id = ?
+                  `;
 
-                      //Commit finale
-                      if (stockUpdated === items.length) {
-                        db.commit((err) => {
-                          if (err) {
-                            return db.rollback(() => res.status(500).json(err));
-                          }
-
-                          res.json({
-                            message: "Checkout completato con successo",
-                            order_id: orderId,
-                            total: orderTotal,
+                    connection.query(
+                      updateSql,
+                      [item.quantity, item.article_id],
+                      (err) => {
+                        if (err) {
+                          return connection.rollback(() => {
+                            connection.release();
+                            res.status(500).json(err);
                           });
-                        });
+                        }
+
+                        stockUpdated++;
+
+                        //Commit finale
+                        if (stockUpdated === items.length) {
+                          connection.commit((err) => {
+                            if (err) {
+                              return connection.rollback(() => {
+                                connection.release();
+                                res.status(500).json(err);
+                              });
+                            }
+
+                            connection.release();
+                            res.json({
+                              message: "Checkout completato con successo",
+                              order_id: orderId,
+                              total: orderTotal,
+                            });
+                          });
+                        }
                       }
-                    }
-                  );
+                    );
+                  }
                 }
-              }
-            );
-          }
-        });
-      }
+              );
+            }
+          });
+        }
+      });
     });
   },
 };
