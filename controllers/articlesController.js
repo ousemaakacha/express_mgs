@@ -1,4 +1,27 @@
 const db = require("../data/db");
+const nodemailer = require("nodemailer");
+
+// Configurazione Mailtrap
+const transporter = nodemailer.createTransport({
+  host: process.env.MAILTRAP_HOST,
+  port: Number(process.env.MAILTRAP_PORT || 2525),
+  auth: {
+    user: process.env.MAILTRAP_USER,
+    pass: process.env.MAILTRAP_PASS,
+  },
+});
+
+// Funzione per inviare email di conferma ordine
+const sendOrderConfirmationEmail = async (orderData) => {
+  const { email, name, orderId, total } = orderData;
+
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM,
+    to: email,
+    subject: `Conferma Ordine #${orderId}`,
+    text: `Ciao ${name}, il tuo ordine #${orderId} è confermato. Totale: € ${total.toFixed(2)}`
+  });
+};
 
 const articlesController = {
   //Risponde con TUTTI gli articoli
@@ -331,7 +354,7 @@ WHERE a.slug = ?`;
 
                         //Commit finale
                         if (stockUpdated === items.length) {
-                          connection.commit((err) => {
+                          connection.commit(async (err) => {
                             if (err) {
                               return connection.rollback(() => {
                                 connection.release();
@@ -340,6 +363,23 @@ WHERE a.slug = ?`;
                             }
 
                             connection.release();
+
+                            // Invio email di conferma ordine
+                            try {
+                              await sendOrderConfirmationEmail({
+                                email,
+                                name,
+                                surname,
+                                orderId,
+                                total: orderTotal,
+                                address
+                              });
+                              console.log(`Email di conferma inviata a ${email} per ordine #${orderId}`);
+                            } catch (emailErr) {
+                              console.error("Errore invio email:", emailErr);
+                              // Non blocchiamo l'ordine se l'email fallisce
+                            }
+
                             res.json({
                               message: "Checkout completato con successo",
                               order_id: orderId,
