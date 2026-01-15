@@ -5,6 +5,10 @@ const PORT = 3000;
 
 //import del raouter
 const articlesRouter = require("./routes/articlesRouter");
+// import del subsrouter
+const subscribeRouter = require("./routes/subscribeRouter");
+
+
 
 //Middleware import
 const notFound = require("./middleware/notFound");
@@ -22,6 +26,7 @@ app.get("/", (req, res) => {
 
 //Router + assegnazione prefisso
 app.use("/api/articles", articlesRouter);
+app.use("/api/subscribe", subscribeRouter);
 
 app.use(serverError);
 app.use(notFound);
