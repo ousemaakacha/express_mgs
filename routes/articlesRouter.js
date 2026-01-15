@@ -6,13 +6,13 @@ const articlesController = require("../controllers/articlesController");
 router.get("/", articlesController.index);
 
 // show
-router.get("/:id", articlesController.show);
+router.get("/:slug", articlesController.show);
 
 // store
 router.put("/", articlesController.store);
 
 // update
-router.put("/:id", articlesController.update);
+router.patch("/:id", articlesController.update);
 
 //ceckout
 router.post("/checkout", articlesController.checkout);

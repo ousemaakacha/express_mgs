@@ -3,33 +3,52 @@ const db = require("../data/db");
 const articlesController = {
   //Risponde con TUTTI gli articoli
   index: (req, res) => {
-    let sql = `SELECT
-    a.id,
-    a.name,
-    a.slug,
-    a.price,
-    a.image,
-    a.quantity,
-    a.pvp_pve,
-    a.dimensions,
-    a.genres,
-    a.pegi,
-    a.production_year,
-    a.production_house,
-    c.categorie
-FROM articles AS a
-LEFT JOIN categories AS c 
-    ON a.categorie_id = c.id
-WHERE 1=1
-`;
+    // Lista delle categorie valide
+    const validCategories = [
+      "Videogames",
+      "Consoles",
+      "Collectibles",
+      "Accessories",
+    ];
 
-    if (req.query.name) {
-      sql += ` AND name = '${req.query.name}'`;
+    //Query di base
+    let sql = `
+    SELECT
+      a.id,
+      a.name,
+      a.slug,
+      a.price,
+      a.image,
+      a.quantity,
+      a.pvp_pve,
+      a.dimensions,
+      a.genres,
+      a.pegi,
+      a.production_year,
+      a.production_house,
+      c.categorie
+    FROM articles AS a
+    LEFT JOIN categories AS c 
+      ON a.categorie_id = c.id
+    WHERE 1=1
+  `;
+
+    const values = [];
+
+    //Filtro per categoria (se valido)
+    if (req.query.categorie && validCategories.includes(req.query.categorie)) {
+      sql += ` AND c.categorie = ?`;
+      values.push(req.query.categorie);
     }
 
-    //Interrogazione del database
-    db.query(sql, (err, results) => {
-      //In caso di errore:
+    //Filtro per name (può convivere con la categoria)
+    if (req.query.name) {
+      sql += ` AND a.name = ?`;
+      values.push(req.query.name);
+    }
+
+    //Query al database
+    db.query(sql, values, (err, results) => {
       if (err) {
         console.error("Errore nella query dei prodotti:", err);
         return res.status(500).json({
@@ -37,7 +56,7 @@ WHERE 1=1
           message: "Errore interno del server",
         });
       }
-      //altrimenti:
+
       res.json(results);
     });
   },
@@ -47,7 +66,7 @@ WHERE 1=1
   //Mostra un SINGOLO articolo
   show: (req, res) => {
     //Recupero slug passato da frontend
-    const { id } = req.params;
+    const { slug } = req.params;
 
     //Sql con parametro dinamico
     let sql = `SELECT
@@ -67,9 +86,9 @@ WHERE 1=1
 FROM articles AS a
 LEFT JOIN categories AS c
     ON a.categorie_id = c.id
-WHERE a.slug = '${id}'`;
+WHERE a.slug = ?`;
 
-    db.query(sql, (err, results) => {
+    db.query(sql, [slug], (err, results) => {
       //in caso di errore:
       if (err) {
         console.error("Errore nella ricerca singolo prodotto:", err);
@@ -201,8 +220,13 @@ WHERE a.slug = '${id}'`;
   ////////
 
   checkout: (req, res) => {
-    const items = req.body.items;
-    //SE items non è array oppure è un array di lunghezza zero
+    const { name, surname, email, address, items } = req.body;
+
+    //Validazioni base
+    if (!name || !surname || !email || !address) {
+      return res.status(400).json({ error: "Dati cliente mancanti" });
+    }
+
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "Carrello vuoto o non valido" });
     }
@@ -210,38 +234,36 @@ WHERE a.slug = '${id}'`;
     db.beginTransaction((err) => {
       if (err) return res.status(500).json(err);
 
+      let orderTotal = 0;
       let completed = 0;
 
-      //Ciclo che scorre items, ovvero il carrello
+      //Recupero prezzi e controllo stock
       for (const item of items) {
-        //recupero del singolo articolo , id e quantità
         const articleId = Number(item.article_id);
         const qty = Number(item.quantity);
 
-        //controllo che id e quantità siano numeriche(perchè numeriche nel database)
         if (isNaN(articleId) || isNaN(qty) || qty <= 0) {
           return db.rollback(() =>
             res.status(400).json({ error: "Dati carrello non validi" })
           );
         }
 
-        //Sql del singolo articolo, che cambio di giro in giro
-        const sql = `
-        UPDATE articles
-        SET quantity = quantity - ? 
-        WHERE id = ? 
-          AND quantity >= ? 
+        const priceSql = `
+        SELECT price, quantity
+        FROM articles
+        WHERE id = ?
       `;
 
-        //Interrogazione del database
-        db.query(sql, [qty, articleId, qty], (err, result) => {
-          if (err) {
-            //rollback fa in modo che operazini precedenti non abbiano effetto nel DB
-            return db.rollback(() => res.status(500).json(err));
+        db.query(priceSql, [articleId], (err, rows) => {
+          if (err || rows.length === 0) {
+            return db.rollback(() =>
+              res.status(404).json({ error: "Articolo non trovato" })
+            );
           }
 
-          //Se non hai avuto effetto nel DB
-          if (result.affectedRows === 0) {
+          const article = rows[0];
+
+          if (article.quantity < qty) {
             return db.rollback(() =>
               res.status(409).json({
                 error: "Stock insufficiente per uno o più articoli",
@@ -249,21 +271,67 @@ WHERE a.slug = '${id}'`;
             );
           }
 
+          //Calcolo totale
+          orderTotal += article.price * qty;
+
           completed++;
 
-          //Controllo che il ciclo for abbia girato per tutti il carrello
+          //Quando abbiamo calcolato tutto il totale
           if (completed === items.length) {
-            //Permette l'interrogazione atomico del database
-            db.commit((err) => {
-              //ogni interrogazinoe atomica ne controlla eventuali errori
-              if (err) {
-                return db.rollback(() => res.status(500).json(err));
-              }
+            //Inserimento ordine
+            const orderSql = `
+            INSERT INTO orders (name, surname, email, address, total)
+            VALUES (?, ?, ?, ?, ?)
+          `;
 
-              res.json({
-                message: "Checkout completato con successo",
-              });
-            });
+            db.query(
+              orderSql,
+              [name, surname, email, address, orderTotal],
+              (err, orderResult) => {
+                if (err) {
+                  return db.rollback(() => res.status(500).json(err));
+                }
+
+                const orderId = orderResult.insertId;
+                let stockUpdated = 0;
+
+                //Aggiornamento stock
+                for (const item of items) {
+                  const updateSql = `
+                  UPDATE articles
+                  SET quantity = quantity - ?
+                  WHERE id = ?
+                `;
+
+                  db.query(
+                    updateSql,
+                    [item.quantity, item.article_id],
+                    (err) => {
+                      if (err) {
+                        return db.rollback(() => res.status(500).json(err));
+                      }
+
+                      stockUpdated++;
+
+                      //Commit finale
+                      if (stockUpdated === items.length) {
+                        db.commit((err) => {
+                          if (err) {
+                            return db.rollback(() => res.status(500).json(err));
+                          }
+
+                          res.json({
+                            message: "Checkout completato con successo",
+                            order_id: orderId,
+                            total: orderTotal,
+                          });
+                        });
+                      }
+                    }
+                  );
+                }
+              }
+            );
           }
         });
       }
