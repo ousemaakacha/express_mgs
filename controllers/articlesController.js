@@ -41,10 +41,10 @@ const articlesController = {
       values.push(req.query.categorie);
     }
 
-    //Filtro per name (può convivere con la categoria)
+    //Filtro per name (può convivere con la categoria) - ricerca parziale con LIKE
     if (req.query.name) {
-      sql += ` AND a.name = ?`;
-      values.push(req.query.name);
+      sql += ` AND a.name LIKE ?`;
+      values.push(`%${req.query.name}%`);
     }
 
     //Query al database
