@@ -103,6 +103,14 @@ const articlesController = {
       "Accessories",
     ];
 
+    //Ordinamenti validi - sort = ordinamento
+    const validSorts = {
+      name_asc: "a.name ASC",
+      name_desc: "a.name DESC",
+      price_asc: "a.price ASC",
+      price_desc: "a.price DESC",
+    };
+
     //Query di base
     let sql = `
     SELECT
@@ -137,6 +145,11 @@ const articlesController = {
     if (req.query.name) {
       sql += ` AND a.name LIKE ?`;
       values.push(`%${req.query.name}%`);
+    }
+
+    //Filtro per ordinamento(sort = ordinamento)
+    if (!req.query.name && req.query.sort && validSorts[req.query.sort]) {
+      sql += ` ORDER BY ${validSorts[req.query.sort]}`;
     }
 
     //Query al database
