@@ -19,7 +19,76 @@ const sendOrderConfirmationEmail = async (orderData) => {
     from: process.env.MAIL_FROM,
     to: email,
     subject: `Conferma Ordine #${orderId}`,
-    text: `Ciao ${name}, il tuo ordine #${orderId} è confermato. Totale: € ${total.toFixed(2)}`
+    text: `Ciao ${name},
+    grazie per il tuo acquisto! ✅
+    Il tuo ordine #${orderId} è confermato.
+
+    Totale: € ${total.toFixed(2)}
+
+    Ti aggiorneremo appena verrà spedito.
+    Per assistenza, rispondi pure a questa email.
+
+    A presto, Il team di Metal Games Solid Shop`,
+    html:`<div style="margin:0;padding:0;background:#0b0f14;font-family:Arial,Helvetica,sans-serif;">
+    <div style="max-width:640px;margin:0 auto;padding:24px;">
+      
+      <div style="background:#111827;border:1px solid #243244;border-radius:16px;overflow:hidden;">
+        
+        <!-- Header -->
+        <div style="padding:20px 22px;background:linear-gradient(135deg,#111827,#0b1220);border-bottom:1px solid #243244;">
+          <div style="font-size:14px;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;">
+            Metal Games Solid Shop
+          </div>
+          <div style="margin-top:6px;font-size:22px;font-weight:700;color:#e5e7eb;">
+            Ordine confermato ✅
+          </div>
+          <div style="margin-top:6px;font-size:14px;color:#cbd5e1;">
+            Conferma ordine <span style="color:#e5e7eb;font-weight:700;">#${orderId}</span>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:22px;color:#e5e7eb;">
+          <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#e5e7eb;">
+            Ciao <strong>${name}</strong>,<br/>
+            grazie per il tuo acquisto! Abbiamo ricevuto correttamente il tuo ordine e lo stiamo già preparando.
+          </p>
+
+          <div style="margin:18px 0;padding:14px 16px;border:1px solid #243244;border-radius:12px;background:#0b1220;">
+            <div style="font-size:13px;color:#94a3b8;margin-bottom:8px;">Riepilogo ordine</div>
+            <div style="display:flex;justify-content:space-between;gap:12px;font-size:14px;line-height:1.7;">
+              <div style="color:#cbd5e1;">Numero ordine</div>
+              <div style="color:#e5e7eb;font-weight:700;">#${orderId}</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:12px;font-size:14px;line-height:1.7;margin-top:6px;">
+              <div style="color:#cbd5e1;">Totale</div>
+              <div style="color:#22c55e;font-weight:800;">€ ${total.toFixed(2)}</div>
+            </div>
+          </div>
+
+          <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#cbd5e1;">
+            Riceverai un altro aggiornamento appena l’ordine verrà spedito (con eventuale tracking).
+          </p>
+
+          <div style="margin-top:16px;padding:14px 16px;border-radius:12px;background:#0f172a;border:1px dashed #334155;">
+            <div style="font-size:13px;color:#94a3b8;margin-bottom:6px;">Hai bisogno di aiuto?</div>
+            <div style="font-size:14px;color:#e5e7eb;line-height:1.6;">
+              Rispondi direttamente a questa email e ti aiutiamo al volo.
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:16px 22px;border-top:1px solid #243244;background:#0b1220;">
+          <div style="font-size:12px;color:#94a3b8;line-height:1.5;">
+            Questa è un’email automatica di conferma ordine.<br/>
+            © ${new Date().getFullYear()} Metal Games Solid Shop
+          </div>
+        </div>
+
+      </div>
+    </div>
+      </div>` 
   });
 };
 
