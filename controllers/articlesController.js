@@ -29,7 +29,7 @@ const sendOrderConfirmationEmail = async (orderData) => {
     Per assistenza, rispondi pure a questa email.
 
     A presto, Il team di Metal Games Solid Shop`,
-    html:`<div style="margin:0;padding:0;background:#0b0f14;font-family:Arial,Helvetica,sans-serif;">
+    html: `<div style="margin:0;padding:0;background:#0b0f14;font-family:Arial,Helvetica,sans-serif;">
     <div style="max-width:640px;margin:0 auto;padding:24px;">
       
       <div style="background:#111827;border:1px solid #243244;border-radius:16px;overflow:hidden;">
@@ -88,7 +88,7 @@ const sendOrderConfirmationEmail = async (orderData) => {
 
       </div>
     </div>
-      </div>` 
+      </div>`,
   });
 };
 
@@ -314,18 +314,44 @@ WHERE a.slug = ?`;
   checkout: (req, res) => {
     const { name, surname, email, address, items } = req.body;
 
-    //Validazioni base
-    if (!name || !surname || !email || !address) {
-      return res.status(400).json({ error: "Dati cliente mancanti" });
+    //Validazioni per nome-cognome ed email
+    const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ' ]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    //Validazione del form. ".test" è un metodo degli oggetti RegExp, controlla ugualianza
+    if (!name || typeof name !== "string" || !nameRegex.test(name)) {
+      return res.status(400).json({
+        error: "Nome non valido. Sono ammesse solo lettere.",
+      });
     }
 
+    if (!surname || typeof surname !== "string" || !nameRegex.test(surname)) {
+      return res.status(400).json({
+        error: "Cognome non valido. Sono ammesse solo lettere.",
+      });
+    }
+
+    if (!email || typeof email !== "string" || !emailRegex.test(email)) {
+      return res.status(400).json({
+        error: "Email non valida. Formato email errato.",
+      });
+    }
+
+    if (!address || typeof address !== "string") {
+      return res.status(400).json({
+        error: "Indirizzo mancante o non valido.",
+      });
+    }
+
+    //Controllo sull'array di articoli
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: "Carrello vuoto o non valido" });
     }
 
     //Ottieni una connessione dal pool per usare le transazioni
     db.getConnection((err, connection) => {
-      if (err) return res.status(500).json({ error: true, message: err.message });
+      if (err)
+        return res.status(500).json({ error: true, message: err.message });
 
       connection.beginTransaction((err) => {
         if (err) {
@@ -441,9 +467,11 @@ WHERE a.slug = ?`;
                                 surname,
                                 orderId,
                                 total: orderTotal,
-                                address
+                                address,
                               });
-                              console.log(`Email di conferma inviata a ${email} per ordine #${orderId}`);
+                              console.log(
+                                `Email di conferma inviata a ${email} per ordine #${orderId}`,
+                              );
                             } catch (emailErr) {
                               console.error("Errore invio email:", emailErr);
                               // Non blocchiamo l'ordine se l'email fallisce
@@ -456,10 +484,10 @@ WHERE a.slug = ?`;
                             });
                           });
                         }
-                      }
+                      },
                     );
                   }
-                }
+                },
               );
             }
           });
