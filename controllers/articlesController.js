@@ -325,7 +325,13 @@ WHERE a.slug = ?`;
   ////////
 
   checkout: (req, res) => {
-    const { name, surname, email, address, items } = req.body;
+    const { name, surname, email, address, items, termsAccepted } = req.body;
+
+    if (termsAccepted !== true) {
+      return res.status(400).json({
+        error: "Accettare i termini e le condizioni",
+      });
+    }
 
     //Validazioni per nome-cognome ed email
     const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ' ]+$/;
