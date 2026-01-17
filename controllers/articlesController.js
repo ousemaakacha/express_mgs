@@ -1,5 +1,7 @@
 const db = require("../data/db");
 const nodemailer = require("nodemailer");
+//funzione che valida l'indirizzo
+const validateAddress = require("../utils/validateAddress");
 
 // Configurazione Mailtrap
 const transporter = nodemailer.createTransport({
@@ -356,9 +358,10 @@ WHERE a.slug = ?`;
       });
     }
 
-    if (!address || typeof address !== "string") {
+    //controllo indirizzo
+    if (!addressValidation.valid) {
       return res.status(400).json({
-        error: "Indirizzo mancante o non valido.",
+        error: addressValidation.error,
       });
     }
 
