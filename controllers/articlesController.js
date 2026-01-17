@@ -1,7 +1,7 @@
 const db = require("../data/db");
 const nodemailer = require("nodemailer");
 //funzione che valida l'indirizzo
-const validateAddress = require("../utils/validateAddress");
+const validateAddress = require("../utility/validateAddress");
 
 // Configurazione Mailtrap
 const transporter = nodemailer.createTransport({
@@ -327,7 +327,7 @@ WHERE a.slug = ?`;
   ////////
 
   checkout: (req, res) => {
-    const { name, surname, email, address, items, termsAccepted } = req.body;
+    const { name, surname, email, via, numero_civico, cap, citta, items, termsAccepted } = req.body;
 
     if (termsAccepted !== true) {
       return res.status(400).json({
@@ -359,11 +359,15 @@ WHERE a.slug = ?`;
     }
 
     //controllo indirizzo
+    const addressValidation = validateAddress({ via, numero_civico, cap, citta });
     if (!addressValidation.valid) {
       return res.status(400).json({
         error: addressValidation.error,
       });
     }
+
+    // Combina l'indirizzo per il salvataggio nel database
+    const address = `${via} ${numero_civico}, ${cap} ${citta}`;
 
     //Controllo sull'array di articoli
     if (!Array.isArray(items) || items.length === 0) {

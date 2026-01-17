@@ -28,8 +28,10 @@ app.get("/", (req, res) => {
 app.use("/api/articles", articlesRouter);
 app.use("/api/subscribe", subscribeRouter);
 
-app.use(serverError);
+// notFound deve venire prima (middleware normale per rotte non trovate)
 app.use(notFound);
+// serverError deve venire dopo (error handler con 4 parametri)
+app.use(serverError);
 
 app.listen(PORT, () => {
   console.log(`server listener on http://localhost:${PORT}`);
